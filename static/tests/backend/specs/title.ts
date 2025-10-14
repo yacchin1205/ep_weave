@@ -10,9 +10,11 @@ import { generateJWTToken } from "ep_etherpad-lite/tests/backend/common";
 
 // Creates a pad and returns the pad id. Calls the callback when finished.
 const createPad = async (padID: string) => {
+  const token = await generateJWTToken();
+  console.log("JWT token", token);
   const res = await agent
     .get(`/api/${apiVersion}/createPad?padID=${padID}`)
-    .set("Authorization", await generateJWTToken());
+    .set("Authorization", token);
   if (res.body.code !== 0) {
     throw new Error("Unable to create new Pad");
   }
@@ -23,9 +25,11 @@ const setHTML = async (padID: string, html: string) => {
   const encodedHTML = encodeURIComponent(html);
   const newHtml = `/api/${apiVersion}/setHTML?padID=${padID}&html=${encodedHTML}`;
   console.log("New HTML is", newHtml);
+  const token = await generateJWTToken();
+  console.log("JWT token", token);
   const res = await agent
     .get(newHtml)
-    .set("authorization", await generateJWTToken());
+    .set("authorization", token);
   console.log("Res is", res.body);
   if (res.body.code !== 0) {
     throw new Error("Unable to set pad HTML");
