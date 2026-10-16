@@ -56,6 +56,50 @@ To configure notebook search, add the following settings:
 - `password`: Basic auth password for Solr (optional)
 - `jupyterBaseUrl`: Jupyter base URL for generating links (optional)
 
+## Similarity Sort
+
+The related pages in the rollup can be sorted by the similarity of their
+content to the current pad. Pads are embedded with
+[EmbeddingGemma 2](https://huggingface.co/google/embeddinggemma-2) by the
+service in the `embedding` directory, and the vectors are stored in the pad's
+Solr document like the rest of the index. To enable it, run the service and
+add its URL to the settings:
+
+```json
+"ep_weave": {
+  "embedding": {
+    "url": "http://embedding:8000"
+  }
+}
+```
+
+- `url`: Base URL of the embedding service (required)
+
+With docker compose, `docker-compose.embedding.yml` adds the service and a
+settings file with this entry:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.embedding.yml up -d
+```
+
+Without this setting the sort option is not shown and pads are indexed as
+before. With it, every pad update calls the service while indexing, so the
+indexing throughput is bound by the inference speed of the service; give it
+more CPU, or build it with a CUDA wheel index (`--build-arg
+TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128`) and a GPU runtime.
+The model is baked into the image, so the service needs no network access at
+runtime. If the service is unreachable, indexing of the edited pad fails and
+its index entry stays as it was until a later edit succeeds.
+
+The pad core schema gained the `embedding` field with this feature. Before
+enabling the setting on an existing deployment, rebuild the Solr index as
+described in
+[Troubleshooting](#search-does-not-work--the-top-page-shows-no-pads); with
+the old schema every pad update fails with an unknown field error. Pads
+indexed while the setting was absent have no vector and are listed after the
+others in the similarity sort until they are edited. A self-hosted Solr must
+be 9.6 or later for the two-argument form of the `vectorSimilarity` function.
+
 # Troubleshooting
 
 ## Search does not work / the top page shows no pads

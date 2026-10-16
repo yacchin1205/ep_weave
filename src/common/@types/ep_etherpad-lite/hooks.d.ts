@@ -18,6 +18,7 @@ declare module "ep_etherpad-lite/hooks" {
       toggleRollupKey?: string;
       notebookSearchEnabled?: boolean;
       jupyterBaseUrl?: string;
+      embeddingEnabled: boolean;
       title?: string;
       oldTitle?: string;
       titleChangedChecked?: any;

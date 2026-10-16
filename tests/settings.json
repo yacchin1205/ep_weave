@@ -655,7 +655,10 @@
       "padSerializer": "ep_weave/lib/serializer"
     },
     "ep_weave": {
-      "toggleRollupKey": "Ctrl+Shift+R"
+      "toggleRollupKey": "Ctrl+Shift+R",
+      "embedding": {
+        "url": "http://localhost:8000"
+      }
     }
   }
   

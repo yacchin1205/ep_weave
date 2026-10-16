@@ -8,7 +8,7 @@ import {
 } from "ep_etherpad-lite/hooks";
 import { createHashItemView } from "./hashitem";
 import { parse } from "./parser";
-import { query, escapeForText } from "./result";
+import { query, escapeForText, QueryResponse } from "./result";
 import { createToolbar, createCloseButton } from "./toolbar";
 import { initResizer, windowResized } from "./resizer";
 import { getHashQuery } from "./hash";
@@ -300,6 +300,17 @@ function checkTitle(title: string) {
   checkTitleDuplicated(title);
 }
 
+function appendSimilarityNotice(response: QueryResponse, container: JQuery) {
+  if (response.similarity !== false) {
+    return;
+  }
+  container.append(
+    $("<div></div>").text(
+      "Similarity is not available until this page is indexed; showing by date modified"
+    )
+  );
+}
+
 async function loadChildPads(
   title: string,
   additionalQuery: string | null,
@@ -317,7 +328,9 @@ async function loadChildPads(
   const luceneQuery = `title:${escapeForText(
     `${title}/`
   )}*${additionalLuceneQuery}`;
-  const { docs } = await query(luceneQuery, 0, limit, sort);
+  const response = await query(luceneQuery, 0, limit, sort);
+  appendSimilarityNotice(response, container);
+  const { docs } = response;
   let empty = true;
   const hashViews: Promise<JQuery>[] = [];
   (docs || [])
@@ -352,12 +365,14 @@ async function loadPadsHashView(
       : `(${getHashQuery(hash)} OR title:"${escapeForText(
           hash.substring(1)
         )}")`;
-  const { docs } = await query(
+  const response = await query(
     `${luceneQuery}${additionalLuceneQuery}`,
     0,
     limit,
     sort
   );
+  appendSimilarityNotice(response, container);
+  const { docs } = response;
   let empty = true;
   const hashViews: Promise<JQuery>[] = [];
   (docs || [])
@@ -596,7 +611,7 @@ function createPadsHashView(container: JQuery) {
       const basePath = getBasePath();
       window.open(`${basePath}/t/${encodeURIComponent(title)}`, "_blank");
     },
-  });
+  }, clientVars.ep_weave.embeddingEnabled);
   toolbar.prepend(marker);
 
   const content = $("<div></div>").attr("id", "hashview-pads-content");
