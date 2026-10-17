@@ -4,6 +4,8 @@ export type EmbeddingSettings = {
   url: string;
 };
 
+export const DIMENSION = 768;
+
 let endpoint: string | null = null;
 
 export function configure(settings: EmbeddingSettings | undefined) {

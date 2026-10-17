@@ -44,6 +44,23 @@ declare module "ep_etherpad-lite/hooks" {
     };
   };
 
+  export type AceRep = {
+    selStart: [number, number] | null;
+    selEnd: [number, number] | null;
+    lines: {
+      length: () => number;
+      atIndex: (index: number) => {
+        text: string;
+        lineMarker: number;
+        lineNode: HTMLElement;
+      };
+    };
+  };
+
+  export type AceSelectionChangedContext = {
+    rep: AceRep;
+  };
+
   export type PostAceInitContext = {
     ace: AceEditor;
     pad: Pad;

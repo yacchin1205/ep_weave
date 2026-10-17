@@ -52,6 +52,14 @@ const indexWithoutVector = async (id: string, title: string, text: string) => {
   }
 };
 
+const indexedVector = async (id: string) => {
+  const response = await fetch(
+    `http://localhost:8983/solr/pad/select?q=id:${id}&fl=embedding`
+  );
+  const { response: { docs } } = await response.json();
+  return docs[0].embedding;
+};
+
 const related = async (pad: string) => {
   const res = await agent
     .get(
@@ -111,5 +119,21 @@ describe("related pads sorted by similarity", function () {
     const result = await related(legacyPad);
     assert.strictEqual(result.similarity, false);
     assert.strictEqual(result.docs.length, 4);
+  });
+
+  it("lists the pads nearest to a given vector", async function () {
+    const vector = await indexedVector(applePad);
+    const res = await agent
+      .post("/ep_weave/similar?rows=100")
+      .send({ vector })
+      .expect(200);
+    const ids = JSON.parse(res.text).docs.map((doc: any) => doc.id);
+    assert.strictEqual(ids[0], applePad);
+    assert.ok(ids.indexOf(tartPad) < ids.indexOf(clusterPad));
+    assert.ok(!ids.includes(legacyPad));
+  });
+
+  it("rejects a vector of the wrong dimension", async function () {
+    await agent.post("/ep_weave/similar").send({ vector: [1, 2, 3] }).expect(400);
   });
 });

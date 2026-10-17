@@ -1,6 +1,7 @@
 import {
   AceEditEventContext,
   AceGetFilterStackContext,
+  AceSelectionChangedContext,
   AceToolbar,
   ClientVars,
   PostAceInitContext,
@@ -9,6 +10,7 @@ import {
 import { createHashItemView } from "./hashitem";
 import { parse } from "./parser";
 import { query, escapeForText, QueryResponse } from "./result";
+import { createSimilarView, selectionChanged } from "./similar";
 import { createToolbar, createCloseButton } from "./toolbar";
 import { initResizer, windowResized } from "./resizer";
 import { getHashQuery } from "./hash";
@@ -549,7 +551,7 @@ function reloadPadsHashView(
   additionalQuery: string | null,
   sort: string | null
 ) {
-  const container = $("#hashview-pads-content").empty();
+  const container = $("#hashview-hashes").empty();
 
   container.append($("<div></div>").text("Child pages").addClass("hash-text"));
   const childContainer = $("<div></div>").addClass("hash-container");
@@ -615,6 +617,11 @@ function createPadsHashView(container: JQuery) {
   toolbar.prepend(marker);
 
   const content = $("<div></div>").attr("id", "hashview-pads-content");
+  const similar = clientVars.ep_weave.embeddingEnabled ? createSimilarView() : null;
+  if (similar) {
+    content.append(similar);
+  }
+  content.append($("<div></div>").attr("id", "hashview-hashes"));
   container.append(toolbar).append(content);
 }
 
@@ -815,6 +822,13 @@ exports.aceEditEvent = (hook: string, context: AceEditEventContext) => {
     const notebooksSort = getCurrentSort('notebooks');
     reloadNotebooksHashView(title, relatedHashes, notebooksSort);
   }
+};
+
+exports.aceSelectionChanged = (
+  hook: string,
+  context: AceSelectionChangedContext
+) => {
+  selectionChanged(context.rep);
 };
 
 exports.postToolbarInit = (hook: any, context: PostToolbarInit) => {

@@ -9,7 +9,7 @@ import { logPrefix } from "./util/log";
 import { updateTitles } from "./database/title";
 import { escapeForText } from "./static/js/result";
 import { createClient } from "./solr-client";
-import { configure as configureEmbedding, EmbeddingSettings } from "./embedding";
+import { configure as configureEmbedding, DIMENSION, EmbeddingSettings } from "./embedding";
 
 const absolutePaths = require("ep_etherpad-lite/node/utils/AbsolutePaths");
 const argv = require("ep_etherpad-lite/node/utils/Cli").argv;
@@ -343,8 +343,31 @@ function performRegisterRoute(
 
   app.get("/ep_weave/notebook-search", notebookSearchHandler);
 
+  const asyncRoute =
+    (handler: (req: Request, res: Response) => Promise<void>) =>
+    (req: Request, res: Response) => {
+      handler(req, res).catch((err) => {
+        console.error(
+          logPrefix,
+          "Error occurred",
+          err.stack || err.message || String(err)
+        );
+        res.status(500).send({
+          error: err.toString(),
+        });
+      });
+    };
+  // Vector queries go to Solr directly: they are too long for ep_search's GET client.
+  const createPadClient = () => {
+    const { host, port, core, username, password } = epSearchPluginSettings;
+    const client = createClient({ baseUrl: `http://${host}:${port}`, core });
+    if (username && password) {
+      client.basicAuth(username, password);
+    }
+    return client;
+  };
+
   // Related pads ordered by vector similarity to the given pad.
-  // Goes to Solr directly: the query vector is too long for ep_search's GET client.
   const relatedHandler = async (req: Request, res: Response) => {
     const { query, pad } = req.query;
     if (typeof query !== "string" || typeof pad !== "string") {
@@ -355,11 +378,7 @@ function performRegisterRoute(
     }
     const start = parseInt(req.query.start as string) || 0;
     const rows = parseInt(req.query.rows as string) || 10;
-    const { host, port, core, username, password } = epSearchPluginSettings;
-    const client = createClient({ baseUrl: `http://${host}:${port}`, core });
-    if (username && password) {
-      client.basicAuth(username, password);
-    }
+    const client = createPadClient();
     const reference = await client.search({
       q: `id:${escapeForText(pad)}`,
       fl: "embedding",
@@ -381,18 +400,29 @@ function performRegisterRoute(
       : await client.search({ q: query, start, rows, sort: "indexed desc" });
     res.send(JSON.stringify({ ...result.response, similarity: !!embedding }));
   };
-  app.get("/ep_weave/related", (req: Request, res: Response) => {
-    relatedHandler(req, res).catch((err) => {
-      console.error(
-        logPrefix,
-        "Error occurred",
-        err.stack || err.message || String(err)
-      );
-      res.status(500).send({
-        error: err.toString(),
+  app.get("/ep_weave/related", asyncRoute(relatedHandler));
+
+  // Pads nearest to a vector, which the browser computes from the user's selection.
+  const similarHandler = async (req: Request, res: Response) => {
+    const { vector } = req.body;
+    if (
+      !Array.isArray(vector) ||
+      vector.length !== DIMENSION ||
+      !vector.every(Number.isFinite)
+    ) {
+      res.status(400).send({
+        error: `vector must be an array of ${DIMENSION} finite numbers`,
       });
+      return;
+    }
+    const rows = parseInt(req.query.rows as string) || 10;
+    const result = await createPadClient().search({
+      q: `{!knn f=embedding topK=${rows}}[${vector.join(",")}]`,
+      rows,
     });
-  });
+    res.send(JSON.stringify(result.response));
+  };
+  app.post("/ep_weave/similar", asyncRoute(similarHandler));
   // Use regex directly for version compatibility
   app.get(/^\/t\/(.*)/, (req: Request, res: Response) => {
     const { user } = (req as any).session;

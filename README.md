@@ -91,6 +91,15 @@ The model is baked into the image, so the service needs no network access at
 runtime. If the service is unreachable, indexing of the edited pad fails and
 its index entry stays as it was until a later edit succeeds.
 
+With the setting, the rollup also suggests pages similar to the paragraph at
+the cursor, or to the selected text when there is a selection; a range without
+text is represented by its first image. The paragraph is embedded in the
+browser with WebGPU, and only the vector is sent to the server. On first use the browser downloads
+[Transformers.js](https://huggingface.co/docs/transformers.js) from jsDelivr
+and the 8-bit ONNX model (about 520 MB) from Hugging Face; browsers without
+WebGPU do not show the suggestions. Only pads that have a vector are
+suggested.
+
 The pad core schema gained the `embedding` field with this feature. Before
 enabling the setting on an existing deployment, rebuild the Solr index as
 described in

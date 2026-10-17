@@ -15,6 +15,7 @@
         "postAceInit": "ep_weave/static/js/hashview",
         "postToolbarInit": "ep_weave/static/js/hashview",
         "aceEditEvent": "ep_weave/static/js/hashview",
+        "aceSelectionChanged": "ep_weave/static/js/hashview",
         "aceGetFilterStack": "ep_weave/static/js/hashview",
         "aceCreateDomLine": "ep_weave/static/js/hashview"
       }
