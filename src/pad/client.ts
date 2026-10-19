@@ -1,5 +1,6 @@
 import { EejsBlockContext } from "ep_etherpad-lite/hooks";
 import eejs from "ep_etherpad-lite/node/eejs";
+import settings from "ep_etherpad-lite/node/utils/Settings";
 
 exports.eejsBlock_styles = (hookName: any, context: EejsBlockContext) => {
   context.content += eejs.require("./templates/styles.html", {}, module);
@@ -20,4 +21,11 @@ exports.eejsBlock_indexCustomScripts = (
 ) => {
   const script = eejs.require("./static/js/index.all.js", {}, module);
   context.content += `<script>${script}</script>`;
+};
+
+exports.eejsBlock_mySettings = (hookName: any, context: EejsBlockContext) => {
+  if (!settings.ep_weave?.embedding) {
+    return;
+  }
+  context.content += eejs.require("./templates/settings.html", {}, module);
 };

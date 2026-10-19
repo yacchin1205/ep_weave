@@ -1,4 +1,5 @@
 import { AceRep } from "ep_etherpad-lite/hooks";
+import { padcookie } from "ep_etherpad-lite/static/js/pad_cookie";
 import { PadType } from "ep_search/setup";
 import { createHashItemView } from "./hashitem";
 import { getBasePath } from "./util";
@@ -7,6 +8,7 @@ const logPrefix = "[ep_weave/similar]";
 const DEBOUNCE_MS = 500;
 const INITIAL_ITEMS = 5;
 const MAX_ITEMS = 20;
+const PREF = "similarPages";
 
 export type Selection =
   | { kind: "text"; text: string }
@@ -18,6 +20,7 @@ let items: JQuery;
 let worker: Worker | undefined;
 let timer: number | undefined;
 let suggested = "";
+let enabled = padcookie.getPref(PREF) !== false;
 let latest = 0;
 let chain: Promise<void> = Promise.resolve();
 
@@ -161,24 +164,36 @@ function suggest(selection: Selection) {
 
 // Returns null when the browser cannot run the model.
 export function createSimilarView(): JQuery | null {
+  const checkbox = $("#options-similarpages");
   if (!("gpu" in navigator)) {
     console.info(logPrefix, "WebGPU is unavailable; similar pages are not suggested");
+    checkbox.prop("disabled", true);
     return null;
   }
   status = $("<div></div>");
   items = $("<div></div>").addClass("hash-container");
-  section = $("<div></div>")
+  const view = $("<div></div>")
     .attr("id", "hashview-similar")
     .append($("<div></div>").text("Similar pages").addClass("hash-text"))
     .append(status)
     .append(items)
     .hide();
-  return section;
+  checkbox.prop("checked", enabled).on("change", () => {
+    enabled = checkbox.prop("checked");
+    padcookie.setPref(PREF, enabled);
+    if (!enabled) {
+      window.clearTimeout(timer);
+      suggested = "";
+      view.hide();
+    }
+  });
+  section = view;
+  return view;
 }
 
 export function selectionChanged(rep: AceRep) {
   const view = section;
-  if (!view) {
+  if (!view || !enabled) {
     return;
   }
   const selection = selectedContent(rep);

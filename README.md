@@ -98,7 +98,9 @@ browser with WebGPU, and only the vector is sent to the server. On first use the
 [Transformers.js](https://huggingface.co/docs/transformers.js) from jsDelivr
 and the 8-bit ONNX model (about 520 MB) from Hugging Face; browsers without
 WebGPU do not show the suggestions. Only pads that have a vector are
-suggested.
+suggested. Each user can turn the suggestions off with "Suggest similar
+pages" in the pad settings; the choice is kept in the browser like the other
+pad settings.
 
 The pad core schema gained the `embedding` field with this feature. Before
 enabling the setting on an existing deployment, rebuild the Solr index as
