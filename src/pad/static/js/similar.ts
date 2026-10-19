@@ -20,7 +20,7 @@ let items: JQuery;
 let worker: Worker | undefined;
 let timer: number | undefined;
 let suggested = "";
-let enabled = padcookie.getPref(PREF) !== false;
+let enabled = true;
 let latest = 0;
 let chain: Promise<void> = Promise.resolve();
 
@@ -178,6 +178,7 @@ export function createSimilarView(): JQuery | null {
     .append(status)
     .append(items)
     .hide();
+  enabled = padcookie.getPref(PREF) !== false;
   checkbox.prop("checked", enabled).on("change", () => {
     enabled = checkbox.prop("checked");
     padcookie.setPref(PREF, enabled);
