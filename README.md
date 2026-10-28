@@ -115,6 +115,29 @@ indexed while it was disabled have no vector and are listed after the
 others in the similarity sort until they are edited. A self-hosted Solr must
 be 9.6 or later for the two-argument form of the `vectorSimilarity` function.
 
+# API
+
+Other applications reach ep_weave through two endpoints next to the Etherpad HTTP API. They are authenticated the same way as that API: with the API key while `APIKEY.txt` exists, otherwise with the OAuth bearer token of a client registered under `sso.clients` with `grant_types: ["client_credentials"]` and `extraParams: [{"name": "admin", "value": "true"}]`.
+
+## Search
+
+```
+GET /ep_weave/api/search?query=<solr query>&start=0&rows=10&sort=indexed%20desc
+```
+
+`start`, `rows` and `sort` are optional. The response is Solr's: `numFound`, `start` and `docs` with `id`, `title`, `shorttext`, `created` and `indexed`.
+
+## Insert lines
+
+```
+POST /ep_weave/api/insert
+Content-Type: application/json
+
+{"padID": "...", "rev": 12, "line": 3, "html": "<p>a paragraph</p><ul><li>an item</li></ul>", "authorId": "a.xxx"}
+```
+
+Inserts the lines the HTML fragment yields before line `line` of the pad, counted from 0; the number of lines appends. Unlike `setHTML` it leaves the rest of the pad as it is, so the other authors keep their attribution and the revision holds only the change. `rev` is the head revision the caller read the pad at (`getRevisionsCount`); a pad that has moved on is refused with 409 and its current `rev`. `authorId` is optional. The response is `{"padID": "...", "rev": 13}`, the new head.
+
 # Troubleshooting
 
 ## Search does not work / the top page shows no pads

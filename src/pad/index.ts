@@ -1,11 +1,16 @@
 import fs from "fs";
-import { Request, Response, NextFunction } from "express";
-import { createSearchEngine, SearchEngine } from "ep_search/setup";
+import { Request, Response } from "express";
+import {
+  createSearchEngine,
+  SearchEngine,
+  SearchOptions,
+} from "ep_search/setup";
 import {
   ExpressCreateServerArgs,
   PreAuthorizeArgs,
 } from "ep_etherpad-lite/hooks";
 import { logPrefix } from "./util/log";
+import { apiAuth, insertHandler } from "./api";
 import { updateTitles } from "./database/title";
 import { escapeForText } from "./static/js/result";
 import { createClient } from "./solr-client";
@@ -16,15 +21,12 @@ import {
   isEnabled as isEmbeddingEnabled,
 } from "./embedding";
 
-const absolutePaths = require("ep_etherpad-lite/node/utils/AbsolutePaths");
-const argv = require("ep_etherpad-lite/node/utils/Cli").argv;
 const { v4: uuidv4 } = require("uuid");
 const api = require("ep_etherpad-lite/node/db/API");
 const authorManager = require("ep_etherpad-lite/node/db/AuthorManager");
 const db = require("ep_etherpad-lite/node/db/DB").db;
 const importEtherpad = require("ep_etherpad-lite/node/utils/ImportEtherpad");
 
-let apikey: string | null = null;
 let epWeaveSettings: PluginSettings | undefined;
 let epSearchSettings: any;
 
@@ -204,31 +206,6 @@ function performRegisterRoute(
 ) {
   const basePath = epWeavePluginSettings.basePath || "";
   const searchEngine = createSearchEngine(epSearchPluginSettings);
-  const apikeyFilename = absolutePaths.makeAbsolute(
-    argv.apikey || "./APIKEY.txt"
-  );
-  try {
-    apikey = fs.readFileSync(apikeyFilename, "utf8");
-    console.info(logPrefix, `Api key file read from: "${apikeyFilename}"`);
-  } catch (e) {
-    console.warn(logPrefix, `Api key file "${apikeyFilename}" cannot read.`);
-  }
-  const apikeyChecker = (req: Request, res: Response, next: NextFunction) => {
-    const reqApikey = req.query.apikey;
-    if (typeof reqApikey !== "string") {
-      return res.status(400).send("Bad Request");
-    }
-    if (!reqApikey.trim()) {
-      return res.status(401).send("Authentication Required");
-    }
-    if (!apikey) {
-      return res.status(401).send("Authentication Required");
-    }
-    if (reqApikey.trim() !== apikey.trim()) {
-      return res.status(403).send("Unauthorized");
-    }
-    next();
-  };
   const searchHandler = (req: Request, res: Response) => {
     const searchString = req.query.query || req.query.q;
     if (typeof searchString !== "string") {
@@ -237,9 +214,25 @@ function performRegisterRoute(
       });
       return;
     }
-    const sort = req.query.sort as string | undefined;
+    const opts: SearchOptions = {};
+    for (const key of ["start", "rows"] as const) {
+      const value = req.query[key];
+      if (value === undefined) {
+        continue;
+      }
+      if (typeof value !== "string" || !/^\d+$/.test(value)) {
+        res.status(400).send({
+          error: `${key} must be a non-negative integer`,
+        });
+        return;
+      }
+      opts[key] = parseInt(value);
+    }
+    if (typeof req.query.sort === "string") {
+      opts.sort = req.query.sort;
+    }
     searchEngine
-      .search(searchString, sort ? { sort } : undefined)
+      .search(searchString, opts)
       .then((result) => {
         res.send(JSON.stringify(result));
       })
@@ -255,7 +248,7 @@ function performRegisterRoute(
       });
   };
   const { app } = args;
-  app.get("/ep_weave/api/search", apikeyChecker, searchHandler);
+  app.get("/ep_weave/api/search", apiAuth, searchHandler);
 
   // Notebook search endpoint for searching in Jupyter notebook headings
   const notebookSearchHandler = async (req: Request, res: Response) => {
@@ -430,6 +423,7 @@ function performRegisterRoute(
     app.get("/ep_weave/related", asyncRoute(relatedHandler));
     app.post("/ep_weave/similar", asyncRoute(similarHandler));
   }
+  app.post("/ep_weave/api/insert", apiAuth, asyncRoute(insertHandler));
   // Use regex directly for version compatibility
   app.get(/^\/t\/(.*)/, (req: Request, res: Response) => {
     const { user } = (req as any).session;
