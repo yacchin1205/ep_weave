@@ -32,10 +32,16 @@ RUN git clone -b feature/sfu https://github.com/NII-cloud-operation/ep_webrtc.gi
     && chown -R etherpad:etherpad /tmp/ep_webrtc \
     && ls -la /tmp/ep_webrtc
 
+# ep_ai_mcp: MCP tools for pads. The fork makes /mcp work behind Etherpad's
+# body parser and lets a client write as one stable author (authorMapper).
+RUN git clone -b isotty https://github.com/yacchin1205/ep_ai_mcp.git /tmp/ep_ai_mcp \
+    && chown -R etherpad:etherpad /tmp/ep_ai_mcp \
+    && ls -la /tmp/ep_ai_mcp
+
 USER etherpad
 
-ARG ETHERPAD_PLUGINS="ep_align ep_markdown ep_embedded_hyperlinks2 ep_font_color ep_headings2  ep_image_upload"
-ARG ETHERPAD_LOCAL_PLUGINS="/tmp/ep_weave/ /tmp/ep_search/ /tmp/ep_webrtc/"
+ARG ETHERPAD_PLUGINS="ep_align ep_markdown ep_embedded_hyperlinks2 ep_font_color ep_headings2  ep_image_upload ep_ai_core"
+ARG ETHERPAD_LOCAL_PLUGINS="/tmp/ep_weave/ /tmp/ep_search/ /tmp/ep_webrtc/ /tmp/ep_ai_mcp/"
 RUN bin/installDeps.sh && rm -rf ~/.npm && \
     if [ ! -z "${ETHERPAD_PLUGINS}" ]; then \
         pnpm run plugins i ${ETHERPAD_PLUGINS}; \
